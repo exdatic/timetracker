@@ -9,7 +9,7 @@ import streamlit as st
 from .. import repository as repo
 from ..colors import text_color_for
 from ..domain.ranges import split_into_days, start_of_day
-from ..domain.statistics import clamp_to_range, records_in_range
+from ..domain.statistics import clamp, overlapping
 from ..models import UNTRACKED_ITEM_ID, Range, Record, now_ms
 from ..service import (
     Settings,
@@ -111,7 +111,7 @@ def _summary_values(records: list[Record], time_range: Range) -> tuple[int, int]
     """Tracked-only values, even when display records include pseudo gaps."""
     tracked = [record for record in records if record.type_id != UNTRACKED_ITEM_ID]
     total = sum(
-        clamp_to_range(record, time_range).duration
+        clamp(time_range, record).duration
         if not time_range.is_undefined
         else record.duration
         for record in tracked
@@ -130,11 +130,11 @@ def _timeline(records: list[Record], time_range: Range, settings: Settings) -> N
     entities = type_entities()
     st.caption("Timeline")
     for day in days:
-        day_records = records_in_range(records, day)
+        day_records = overlapping(day.range, records)
         blocks = []
-        day_duration = day.duration
+        day_duration = day.range.duration
         for record in sorted(day_records, key=lambda r: r.time_started):
-            clamped = clamp_to_range(record, day)
+            clamped = clamp(day.range, record)
             left = (clamped.time_started - day.time_started) / day_duration * 100
             width = clamped.duration / day_duration * 100
             entity = entities.get(record.type_id)

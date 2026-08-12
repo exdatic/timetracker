@@ -214,13 +214,16 @@ def test_statistics_summary_excludes_untracked_and_uses_unique_records():
 
 
 def test_statistics_day_label_uses_the_logical_date():
+    from timetracker.domain.ranges import split_into_days
     from timetracker.ui.statistics import _day_label
 
     shift = -4 * HOUR_MS
     boundary = to_ms(datetime(2026, 3, 10, 20))
     settings = service.Settings(start_of_day_shift=shift)
 
-    assert _day_label(Range(boundary, boundary + 24 * HOUR_MS), settings) == "11 Mar"
+    day = split_into_days(Range(boundary, boundary + 24 * HOUR_MS), shift)[0]
+
+    assert _day_label(day, settings) == "11 Mar"
 
 
 def test_shifted_day_header_uses_the_logical_date():

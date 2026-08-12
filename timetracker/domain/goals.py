@@ -21,7 +21,7 @@ from ..models import (
 
 from .duration import format_duration
 from .ranges import RangeLength, get_range, shift_timestamp, to_datetime
-from .statistics import duration_in_range, records_in_range
+from .statistics import overlapping, total_duration
 
 
 @dataclass
@@ -132,8 +132,8 @@ def compute_progress(
     ]
 
     if goal.type is GoalType.DURATION:
-        current = duration_in_range(all_records, time_range, show_seconds)
+        current = total_duration(time_range, all_records, show_seconds=show_seconds)
     else:
-        current = len(records_in_range(all_records, time_range))
+        current = len(overlapping(time_range, all_records))
 
     return GoalProgress(goal=goal, current=current, target=goal.value, active_today=active)
