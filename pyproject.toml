@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "timetracker"
+version = "1.0.0"
+description = "Simple Time Tracker — a Streamlit port of the Android app"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "GPL-3.0-or-later" }
+classifiers = ["License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)"]
+# Runtime dependencies live in requirements.txt: Streamlit Community Cloud
+# installs from that file, so it stays the single source of truth.
+dynamic = ["dependencies"]
+
+[project.urls]
+Homepage = "https://github.com/exdatic/timetracker"
+"Original app" = "https://github.com/Razeeman/Android-SimpleTimeTracker"
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "flake8>=7.0"]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+
+[tool.setuptools.packages.find]
+include = ["timetracker*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

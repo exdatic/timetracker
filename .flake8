@@ -1,0 +1,11 @@
+[flake8]
+# E501: line too long — we don't enforce the 79-character limit
+extend-ignore = E501
+max-line-length = 120
+exclude =
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    dist,
+    build
