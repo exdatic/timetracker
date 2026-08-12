@@ -116,7 +116,7 @@ def statistics_for_range(
     else:
         grouped = group_by_activity(records)
 
-    return _get_statistics(time_range, grouped, settings.show_seconds), records
+    return _get_statistics(time_range, grouped, show_seconds=settings.show_seconds), records
 
 
 def goal_target_type_ids(goal: Goal) -> list[int] | None:

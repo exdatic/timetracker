@@ -149,12 +149,12 @@ def _activity_grid(types: list[RecordType], settings) -> None:
 def _today_subtitle(record_type: RecordType, settings) -> str:
     """Time tracked today for this activity, as shown under the activity name."""
     from ..domain.ranges import RangeLength
-    from ..domain.statistics import duration_in_range
+    from ..domain.statistics import total_duration
     from ..service import current_range, records_for_range
 
     today = current_range(RangeLength.DAY, settings=settings)
     records = [r for r in records_for_range(today) if r.type_id == record_type.id]
-    total = duration_in_range(records, today, settings.show_seconds)
+    total = total_duration(today, records, show_seconds=settings.show_seconds)
     return f"today: {duration_text(total, settings)}" if total else "today: –"
 
 
