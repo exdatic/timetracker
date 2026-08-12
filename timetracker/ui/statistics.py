@@ -7,12 +7,12 @@ import plotly.graph_objects as go
 import streamlit as st
 
 from ..domain.duration import HOUR_MS, format_duration
-from ..domain.ranges import shift_timestamp, split_into_days, to_datetime
+from ..domain.ranges import Day, split_into_days, to_datetime
 from ..domain.statistics import (
     ChartFilterType,
-    clamp_to_range,
-    duration_in_range,
-    records_in_range,
+    clamp,
+    overlapping,
+    total_duration,
 )
 from ..models import UNTRACKED_ITEM_ID, Range, Record
 from ..service import Settings, load_settings, statistics_for_range
@@ -78,8 +78,8 @@ def _summary_values(
     """Tracked totals come from unique records, independent of grouping."""
     tracked = [record for record in records if record.type_id != UNTRACKED_ITEM_ID]
     return (
-        duration_in_range(tracked, time_range, show_seconds),
-        len(records_in_range(tracked, time_range)),
+        total_duration(time_range, tracked, show_seconds=show_seconds),
+        len(overlapping(time_range, tracked)),
     )
 
 
@@ -199,7 +199,7 @@ def _daily_chart(
         if entity is None:
             continue
         values = [
-            sum(clamp_to_range(r, day).duration for r in records_in_range(group_records, day)) / HOUR_MS
+            sum(clamp(day.range, r).duration for r in overlapping(day.range, group_records)) / HOUR_MS
             for day in days
         ]
         if not any(values):
@@ -277,7 +277,7 @@ def _detail(
     days = split_into_days(time_range, settings.start_of_day_shift)
 
     durations = [
-        sum(clamp_to_range(r, day).duration for r in records_in_range(group_records, day))
+        sum(clamp(day.range, r).duration for r in overlapping(day.range, group_records))
         for day in days
     ] or [sum(r.duration for r in group_records)]
     total = sum(durations)
@@ -315,9 +315,8 @@ def _detail(
     _hourly_chart(group_records, entities[selected], time_range)
 
 
-def _day_label(day: Range, settings: Settings) -> str:
-    logical_start = shift_timestamp(day.time_started, -settings.start_of_day_shift)
-    return to_datetime(logical_start).strftime("%d %b")
+def _day_label(day: Day, settings: Settings) -> str:
+    return day.date.strftime("%d %b")
 
 
 def _hourly_durations(records: list[Record], time_range: Range) -> list[float]:
@@ -329,8 +328,8 @@ def _hourly_durations(records: list[Record], time_range: Range) -> list[float]:
                 time_started=clamped.time_started,
                 time_ended=clamped.time_ended,
             )
-            for record in records_in_range(records, time_range)
-            if (clamped := clamp_to_range(record, time_range)).duration > 0
+            for record in overlapping(time_range, records)
+            if (clamped := clamp(time_range, record)).duration > 0
         ]
 
     hours = [0.0] * 24

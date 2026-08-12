@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 
@@ -137,16 +138,39 @@ def get_range(
     raise ValueError(f"Unsupported range length: {length}")
 
 
-def split_into_days(time_range: Range, start_of_day_shift: int = 0) -> list[Range]:
+@dataclass(frozen=True)
+class Day:
+    """One day-sized bucket, and the calendar date it belongs to.
+
+    Callers kept deriving the date back out of the range with
+    ``shift_timestamp`` and ``to_datetime``, each doing the day-shift
+    arithmetic again and getting it subtly different. Carry it instead.
+    """
+
+    range: Range
+    date: date
+
+    @property
+    def time_started(self) -> int:
+        return self.range.time_started
+
+    @property
+    def time_ended(self) -> int:
+        return self.range.time_ended
+
+
+def split_into_days(time_range: Range, start_of_day_shift: int = 0) -> list[Day]:
     """Split a range into day-sized buckets — the x axis of the statistics chart."""
     if time_range.is_undefined or time_range.duration <= 0:
         return []
-    result: list[Range] = []
+    result: list[Day] = []
     cursor = start_of_day(time_range.time_started, start_of_day_shift)
     while cursor < time_range.time_ended:
         # The next boundary is simply the start of the day 24 hours on.
         next_day = start_of_day(cursor + DAY_MS, start_of_day_shift)
-        result.append(Range(max(cursor, time_range.time_started), min(next_day, time_range.time_ended)))
+        bucket = Range(max(cursor, time_range.time_started), min(next_day, time_range.time_ended))
+        logical = to_datetime(shift_timestamp(cursor, -start_of_day_shift)).date()
+        result.append(Day(range=bucket, date=logical))
         cursor = next_day
     return result
 

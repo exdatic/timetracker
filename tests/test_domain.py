@@ -28,12 +28,12 @@ from timetracker.domain.ranges import (
     to_ms,
 )
 from timetracker.domain.statistics import (
-    duration_in_range,
     get_statistics,
     group_by_activity,
     group_by_category,
     group_by_tag,
-    records_in_range,
+    overlapping,
+    total_duration,
 )
 from timetracker.domain.untracked import (
     calculate_untracked_ranges,
@@ -235,12 +235,12 @@ def test_negative_day_shift_keeps_logical_week_month_and_year():
 
 def test_split_into_days():
     days = split_into_days(Range(DAY + 20 * HOUR_MS, ms(2026, 3, 12) + 3 * HOUR_MS))
-    assert [d.time_started for d in days] == [
+    assert [d.range.time_started for d in days] == [
         DAY + 20 * HOUR_MS,
         ms(2026, 3, 11),
         ms(2026, 3, 12),
     ]
-    assert days[-1].time_ended == ms(2026, 3, 12) + 3 * HOUR_MS
+    assert days[-1].range.time_ended == ms(2026, 3, 12) + 3 * HOUR_MS
 
 
 @pytest.mark.skipif(not hasattr(time, "tzset"), reason="tzset is unavailable")
@@ -255,11 +255,11 @@ def test_split_into_days_keeps_shifted_boundaries_after_dst(monkeypatch):
 
         days = split_into_days(Range(first.time_started, last.time_started), shift)
 
-        assert [item.time_started for item in days] == [
+        assert [item.range.time_started for item in days] == [
             day_range(date(2026, 3, 29), shift).time_started,
             day_range(date(2026, 3, 30), shift).time_started,
         ]
-        assert days[-1].time_ended == last.time_started
+        assert days[-1].range.time_ended == last.time_started
     finally:
         if previous is None:
             monkeypatch.delenv("TZ", raising=False)
@@ -287,21 +287,21 @@ def record(type_id: int, start_hour: float, hours: float, day: int = DAY, tags=N
 def test_records_in_range_uses_overlap_not_containment():
     day_range = Range(DAY, ms(2026, 3, 11))
     crossing_midnight = record(1, 23, 3)  # 23:00 – 02:00
-    assert records_in_range([crossing_midnight], day_range) == [crossing_midnight]
+    assert overlapping(day_range, [crossing_midnight]) == [crossing_midnight]
 
     next_day = Range(ms(2026, 3, 11), ms(2026, 3, 12))
-    assert records_in_range([crossing_midnight], next_day) == [crossing_midnight]
+    assert overlapping(next_day, [crossing_midnight]) == [crossing_midnight]
 
 
 def test_duration_in_range_clamps_records_to_the_range():
     day_range = Range(DAY, ms(2026, 3, 11))
     crossing_midnight = record(1, 23, 3)
-    assert duration_in_range([crossing_midnight], day_range) == HOUR_MS
+    assert total_duration(day_range, [crossing_midnight]) == HOUR_MS
 
 
 def test_duration_over_all_records_is_not_clamped():
     crossing_midnight = record(1, 23, 3)
-    assert duration_in_range([crossing_midnight], Range(0, 0)) == 3 * HOUR_MS
+    assert total_duration(Range(0, 0), [crossing_midnight]) == 3 * HOUR_MS
 
 
 def test_statistics_are_grouped_and_sorted_by_duration():
