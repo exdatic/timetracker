@@ -67,11 +67,14 @@ def parse_duration(text: str) -> int | None:
 
     if not _DURATION.match(text):
         return None
+    parts = _PART.findall(text)
+    if not parts:
+        return None
     # A number without a unit means minutes.
-    return sum(int(number) * _UNIT_MS[unit] for number, unit in _PART.findall(text))
+    return sum(int(number) * _UNIT_MS[unit] for number, unit in parts)
 
 
-# One or more number groups, each with an optional unit suffix.
-_DURATION = re.compile(r"^((\d+|\s)+([hms])?)+$")
+# A duration is only digits, unit letters and whitespace.
+_DURATION = re.compile(r"^[\dhms\s]+$")
 _PART = re.compile(r"(\d+)\s*([hms]?)")
 _UNIT_MS = {"h": HOUR_MS, "m": MINUTE_MS, "s": SECOND_MS, "": MINUTE_MS}

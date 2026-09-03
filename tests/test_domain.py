@@ -11,6 +11,7 @@ import pytest
 from timetracker.domain.duration import (
     HOUR_MS,
     MINUTE_MS,
+    SECOND_MS,
     format_duration,
     format_timer,
     map_duration,
@@ -89,8 +90,10 @@ def test_map_duration_drops_seconds_when_hidden():
         ("1:30", 90 * MINUTE_MS),
         ("45", 45 * MINUTE_MS),
         ("2h", 2 * HOUR_MS),
+        ("1h 30m 15s", HOUR_MS + 30 * MINUTE_MS + 15 * SECOND_MS),
         ("", None),
         ("nonsense", None),
+        ("8 00 8 30 9 00 9 30 10 00 10 30 Uhr", None),  # issue #2 — must not hang
     ],
 )
 def test_parse_duration(text, expected):
