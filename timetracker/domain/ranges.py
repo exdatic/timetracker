@@ -144,8 +144,11 @@ def split_into_days(time_range: Range, start_of_day_shift: int = 0) -> list[Rang
     result: list[Range] = []
     cursor = start_of_day(time_range.time_started, start_of_day_shift)
     while cursor < time_range.time_ended:
-        # The next boundary is simply the start of the day 24 hours on.
         next_day = start_of_day(cursor + DAY_MS, start_of_day_shift)
+        if next_day <= cursor:
+            # DST fall-back: the day is 25 hours long, so +24h stayed inside it.
+            # Reach past the stretched day so the loop keeps making progress.
+            next_day = start_of_day(cursor + 2 * DAY_MS, start_of_day_shift)
         result.append(Range(max(cursor, time_range.time_started), min(next_day, time_range.time_ended)))
         cursor = next_day
     return result

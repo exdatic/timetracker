@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date, datetime
 import os
+import threading
 import time
 
 import pytest
@@ -182,9 +183,7 @@ def test_calendar_ranges_preserve_day_boundaries_across_dst(monkeypatch):
         (5, -5, 0),
     ],
 )
-def test_shift_timestamp_android_dst_forward_vectors(
-    monkeypatch, start_hour, shift_hours, expected_hour
-):
+def test_shift_timestamp_android_dst_forward_vectors(monkeypatch, start_hour, shift_hours, expected_hour):
     """Representative vectors from Android CalendarShiftTest."""
     previous = os.environ.get("TZ")
     monkeypatch.setenv("TZ", "Europe/Berlin")
@@ -260,6 +259,35 @@ def test_split_into_days_keeps_shifted_boundaries_after_dst(monkeypatch):
             day_range(date(2026, 3, 30), shift).time_started,
         ]
         assert days[-1].time_ended == last.time_started
+    finally:
+        if previous is None:
+            monkeypatch.delenv("TZ", raising=False)
+        else:
+            monkeypatch.setenv("TZ", previous)
+        time.tzset()
+
+
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="tzset is unavailable")
+def test_split_into_days_terminates_across_autumn_dst(monkeypatch):
+    """The October fall-back makes one calendar day 25 hours long. Advancing the
+    cursor by a flat 24h lands back inside that day, so a naive loop never makes
+    progress and spins forever (issue #1: the Year view pins the CPU at 100%)."""
+    previous = os.environ.get("TZ")
+    monkeypatch.setenv("TZ", "Europe/Berlin")
+    time.tzset()
+    try:
+        year = get_range(RangeLength.YEAR, now=to_ms(datetime(2026, 6, 1)))
+
+        days: list[Range] = []
+        worker = threading.Thread(target=lambda: days.extend(split_into_days(year)), daemon=True)
+        worker.start()
+        worker.join(timeout=5)
+
+        assert not worker.is_alive(), "split_into_days never returned — infinite loop across the DST fall-back"
+        assert len(days) == 365  # 2026 is not a leap year: one bucket per calendar day
+        fallback = day_range(date(2026, 10, 25))
+        assert Range(fallback.time_started, fallback.time_ended) in days
+        assert fallback.duration == 25 * HOUR_MS
     finally:
         if previous is None:
             monkeypatch.delenv("TZ", raising=False)
