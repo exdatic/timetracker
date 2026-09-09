@@ -268,6 +268,32 @@ def test_split_into_days_keeps_shifted_boundaries_after_dst(monkeypatch):
         time.tzset()
 
 
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="tzset is unavailable")
+def test_split_into_days_terminates_across_dst_fall_back(monkeypatch):
+    previous = os.environ.get("TZ")
+    monkeypatch.setenv("TZ", "Europe/Berlin")
+    time.tzset()
+    try:
+        # 2026-10-25 is a 25-hour fall-back day in Europe/Berlin.
+        first = day_range(date(2026, 10, 24))
+        last = day_range(date(2026, 10, 27))
+
+        days = split_into_days(Range(first.time_started, last.time_started))
+
+        assert [item.time_started for item in days] == [
+            day_range(date(2026, 10, 24)).time_started,
+            day_range(date(2026, 10, 25)).time_started,
+            day_range(date(2026, 10, 26)).time_started,
+        ]
+        assert days[-1].time_ended == last.time_started
+    finally:
+        if previous is None:
+            monkeypatch.delenv("TZ", raising=False)
+        else:
+            monkeypatch.setenv("TZ", previous)
+        time.tzset()
+
+
 # --------------------------------------------------------------------------- #
 # Statistics
 # --------------------------------------------------------------------------- #
