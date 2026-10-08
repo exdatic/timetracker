@@ -268,6 +268,30 @@ def test_split_into_days_keeps_shifted_boundaries_after_dst(monkeypatch):
         time.tzset()
 
 
+@pytest.mark.skipif(not hasattr(time, "tzset"), reason="tzset is unavailable")
+@pytest.mark.parametrize("shift", [0, 2 * HOUR_MS])
+def test_split_into_days_handles_dst_fall_back(monkeypatch, shift):
+    # 25 October 2026 lasts 25 hours in Berlin; 24 hours on never left it (#21).
+    previous = os.environ.get("TZ")
+    monkeypatch.setenv("TZ", "Europe/Berlin")
+    time.tzset()
+    try:
+        now = ms(2026, 10, 8, 12)
+        october = split_into_days(get_range(RangeLength.MONTH, now=now, start_of_day_shift=shift), shift)
+        year = split_into_days(get_range(RangeLength.YEAR, now=now, start_of_day_shift=shift), shift)
+
+        assert len(october) == 31
+        assert october[24] == day_range(date(2026, 10, 25), shift)
+        assert october[24].duration == 25 * HOUR_MS
+        assert len(year) == 365
+    finally:
+        if previous is None:
+            monkeypatch.delenv("TZ", raising=False)
+        else:
+            monkeypatch.setenv("TZ", previous)
+        time.tzset()
+
+
 # --------------------------------------------------------------------------- #
 # Statistics
 # --------------------------------------------------------------------------- #

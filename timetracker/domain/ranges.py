@@ -6,7 +6,6 @@ from datetime import date, datetime, timedelta, timezone
 from enum import Enum
 
 from ..models import Range
-from .duration import DAY_MS
 
 
 class RangeLength(str, Enum):
@@ -143,9 +142,11 @@ def split_into_days(time_range: Range, start_of_day_shift: int = 0) -> list[Rang
         return []
     result: list[Range] = []
     cursor = start_of_day(time_range.time_started, start_of_day_shift)
+    day = to_datetime(shift_timestamp(cursor, -start_of_day_shift)).date()
     while cursor < time_range.time_ended:
-        # The next boundary is simply the start of the day 24 hours on.
-        next_day = start_of_day(cursor + DAY_MS, start_of_day_shift)
+        # Step by calendar date: a fixed 24 hours never leaves a 25-hour DST day.
+        day += timedelta(days=1)
+        next_day = day_range(day, start_of_day_shift).time_started
         result.append(Range(max(cursor, time_range.time_started), min(next_day, time_range.time_ended)))
         cursor = next_day
     return result
